@@ -14,10 +14,48 @@ const io = new Server(server, {
   cors: { origin: CLIENT_ORIGIN, methods: ["GET", "POST"] },
 });
 
+// In-memory room state: roomId -> Map<socketId, username>
+const rooms = new Map();
+
+function getRoomUsers(roomId) {
+  if (!rooms.has(roomId)) {
+    rooms.set(roomId, new Map());
+  }
+  return rooms.get(roomId);
+}
+
+function broadcastUserList(roomId) {
+  const users = rooms.get(roomId);
+  if (!users) return;
+  io.to(roomId).emit("room-users", Array.from(users.values()));
+}
+
 io.on("connection", (socket) => {
   console.log(`[connect] ${socket.id}`);
 
+  socket.on("join-room", ({ roomId, username }) => {
+    socket.join(roomId);
+    socket.data.roomId = roomId;
+    socket.data.username = username;
+
+    const users = getRoomUsers(roomId);
+    users.set(socket.id, username);
+
+    broadcastUserList(roomId);
+    console.log(`[join] ${username} (${socket.id}) -> room ${roomId}`);
+  });
+
   socket.on("disconnect", () => {
+    const roomId = socket.data.roomId;
+    if (roomId && rooms.has(roomId)) {
+      const users = rooms.get(roomId);
+      users.delete(socket.id);
+      if (users.size === 0) {
+        rooms.delete(roomId);
+      } else {
+        broadcastUserList(roomId);
+      }
+    }
     console.log(`[disconnect] ${socket.id}`);
   });
 });
