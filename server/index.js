@@ -45,6 +45,12 @@ io.on("connection", (socket) => {
     console.log(`[join] ${username} (${socket.id}) -> room ${roomId}`);
   });
 
+  socket.on("code-change", (code) => {
+    const roomId = socket.data.roomId;
+    if (!roomId) return;
+    socket.to(roomId).emit("code-change", code);
+  });
+
   socket.on("disconnect", () => {
     const roomId = socket.data.roomId;
     if (roomId && rooms.has(roomId)) {
