@@ -2,6 +2,8 @@ import express from "express";
 import http from "http";
 import { Server } from "socket.io";
 import cors from "cors";
+import { createAdapter } from "@socket.io/redis-adapter";
+import Redis from "ioredis";
 
 const PORT = process.env.PORT || 4000;
 const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || "http://localhost:5173";
@@ -13,6 +15,16 @@ const server = http.createServer(app);
 const io = new Server(server, {
   cors: { origin: CLIENT_ORIGIN, methods: ["GET", "POST"] },
 });
+const REDIS_URL = process.env.REDIS_URL || "redis://localhost:6379";
+
+const pubClient = new Redis(REDIS_URL);
+const subClient = pubClient.duplicate();
+
+pubClient.on("error", (err) => console.error("[redis pub] error:", err));
+subClient.on("error", (err) => console.error("[redis sub] error:", err));
+pubClient.on("connect", () => console.log("[redis] connected"))
+
+io.adapter(createAdapter(pubClient, subClient));
 
 // In-memory room state: roomId -> Map<socketId, username>
 const rooms = new Map();
