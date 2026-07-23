@@ -4,6 +4,7 @@ import { Server } from "socket.io";
 import cors from "cors";
 import { createAdapter } from "@socket.io/redis-adapter";
 import Redis from "ioredis";
+import { pool } from "./db.js";
 
 const PORT = process.env.PORT || 4000;
 const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || "http://localhost:5173";
@@ -79,6 +80,14 @@ io.on("connection", (socket) => {
 });
 
 app.get("/health", (_req, res) => res.json({ status: "ok" }));
+
+pool.query("SELECT NOW()", (err, res) => {
+  if (err) {
+    console.error("[postgres] connection test failed:", err);
+  } else {
+    console.log("[postgres] connected, server time:", res.rows[0].now);
+  }
+});
 
 server.listen(PORT, () => {
   console.log(`Server listening on http://localhost:${PORT}`);
